@@ -61,15 +61,24 @@ export class MenuRepository implements IMenuRepository {
 
   /**
    * Create new menu
+   * Uses transaction to prevent race condition on order assignment
    */
   async create(data: CreateMenuInput): Promise<Menu> {
-    const nextOrder = await this.getNextOrder();
-    
-    return prisma.menu.create({
-      data: {
-        ...data,
-        order: nextOrder,
-      },
+    return prisma.$transaction(async (tx) => {
+      // Get next order within transaction (atomic)
+      const lastMenu = await tx.menu.findFirst({
+        orderBy: { order: "desc" },
+        select: { order: true },
+      });
+      const nextOrder = (lastMenu?.order ?? 0) + 1;
+
+      // Create menu with guaranteed unique order
+      return tx.menu.create({
+        data: {
+          ...data,
+          order: nextOrder,
+        },
+      });
     });
   }
 
