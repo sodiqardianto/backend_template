@@ -1,7 +1,9 @@
 import express, { type Express } from "express";
 import cors from "cors";
 import { menuRoutes } from "./features/menus/index.js";
+import { authRoutes } from "./features/auth/index.js";
 import { errorHandler } from "./shared/middlewares/error-handler.js";
+import { apiLimiter } from "./shared/middlewares/rate-limiter.js";
 
 /**
  * Create and configure Express application
@@ -29,7 +31,8 @@ export function createApp(): Express {
   });
 
   // API Routes
-  app.use("/api/menus", menuRoutes);
+  app.use("/api/auth", apiLimiter, authRoutes);
+  app.use("/api/menus", apiLimiter, menuRoutes);
 
   // 404 handler
   app.use((_req, res) => {
