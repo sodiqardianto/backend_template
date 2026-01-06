@@ -3,8 +3,10 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import { menuRoutes } from "./features/menus/index.js";
 import { authRoutes } from "./features/auth/index.js";
+import { userRoutes } from "./features/users/index.js";
 import { errorHandler } from "./shared/middlewares/error-handler.js";
 import { apiLimiter } from "./shared/middlewares/rate-limiter.js";
+import { authMiddleware } from "./shared/middlewares/auth.middleware.js";
 
 /**
  * Create and configure Express application
@@ -34,7 +36,8 @@ export function createApp(): Express {
 
   // API Routes
   app.use("/api/auth", apiLimiter, authRoutes);
-  app.use("/api/menus", apiLimiter, menuRoutes);
+  app.use("/api/menus", apiLimiter, authMiddleware, menuRoutes);
+  app.use("/api/users", apiLimiter, authMiddleware, userRoutes);
 
   // 404 handler
   app.use((_req, res) => {

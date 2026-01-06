@@ -3,6 +3,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import type { StringValue } from "ms";
 import { AppError } from "../../shared/errors/app-error.js";
+import { mapUserResponse, type UserResponse } from "../../shared/utils/user-mapper.js";
 import type { IAuthRepository } from "./auth.repository.js";
 import type { RegisterInput, LoginInput } from "./auth.validation.js";
 
@@ -25,7 +26,7 @@ export interface AuthTokens {
 }
 
 export interface AuthResponse {
-  user: Omit<User, "password">;
+  user: UserResponse;
   tokens: AuthTokens;
 }
 
@@ -65,7 +66,7 @@ export class AuthService implements IAuthService {
     const tokens = await this.generateTokens(user);
 
     return {
-      user: this.excludePassword(user),
+      user: mapUserResponse(user),
       tokens,
     };
   }
@@ -95,7 +96,7 @@ export class AuthService implements IAuthService {
     const tokens = await this.generateTokens(user);
 
     return {
-      user: this.excludePassword(user),
+      user: mapUserResponse(user),
       tokens,
     };
   }
@@ -178,14 +179,6 @@ export class AuthService implements IAuthService {
       accessToken,
       refreshToken: refreshTokenValue,
     };
-  }
-
-  /**
-   * Exclude password from user object
-   */
-  private excludePassword(user: User): Omit<User, "password"> {
-    const { password, ...userWithoutPassword } = user;
-    return userWithoutPassword;
   }
 }
 
