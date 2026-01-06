@@ -1,5 +1,6 @@
 import express, { type Express } from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 import { menuRoutes } from "./features/menus/index.js";
 import { authRoutes } from "./features/auth/index.js";
 import { errorHandler } from "./shared/middlewares/error-handler.js";
@@ -22,6 +23,7 @@ export function createApp(): Express {
     ],
     credentials: true,
   }));
+  app.use(cookieParser());
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 

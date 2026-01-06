@@ -6,6 +6,7 @@ import {
   registerSchema,
   loginSchema,
   refreshTokenSchema,
+  logoutSchema,
 } from "./auth.validation.js";
 
 const router = Router();
@@ -45,7 +46,7 @@ router.post(
 // Logout
 router.post(
   "/logout",
-  validate({ body: refreshTokenSchema }),
+  validate({ body: logoutSchema }),
   authController.logout
 );
 

@@ -21,22 +21,37 @@ declare global {
 }
 
 /**
+ * Extract token from request
+ * Priority: 1. Cookie (browser) 2. Authorization header (Postman/mobile)
+ */
+function extractToken(req: Request): string | null {
+  // 1. Try cookie first (for browser clients)
+  if (req.cookies?.accessToken) {
+    return req.cookies.accessToken;
+  }
+
+  // 2. Fall back to Authorization header (for Postman/mobile)
+  const authHeader = req.headers.authorization;
+  if (authHeader) {
+    const parts = authHeader.split(" ");
+    if (parts.length === 2 && parts[0] === "Bearer") {
+      return parts[1];
+    }
+  }
+
+  return null;
+}
+
+/**
  * Auth Middleware - Protects routes that require authentication
- * Verifies JWT token from Authorization header
+ * Verifies JWT token from cookie or Authorization header
  */
 export function authMiddleware(req: Request, _res: Response, next: NextFunction): void {
-  const authHeader = req.headers.authorization;
+  const token = extractToken(req);
 
-  if (!authHeader) {
+  if (!token) {
     throw AppError.unauthorized("No token provided");
   }
-
-  const parts = authHeader.split(" ");
-  if (parts.length !== 2 || parts[0] !== "Bearer") {
-    throw AppError.unauthorized("Token format invalid. Use: Bearer <token>");
-  }
-
-  const token = parts[1];
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
@@ -54,3 +69,4 @@ export function authMiddleware(req: Request, _res: Response, next: NextFunction)
 }
 
 export default authMiddleware;
+

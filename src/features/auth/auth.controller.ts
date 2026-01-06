@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { ApiResponse } from "../../shared/utils/api-response.js";
 import { asyncHandler } from "../../shared/middlewares/async-handler.js";
+import { setAuthCookies, clearAuthCookies } from "../../shared/utils/cookie.js";
 import { authRepository } from "./auth.repository.js";
 import { createAuthService } from "./auth.service.js";
 import type { RegisterInput, LoginInput, RefreshTokenInput } from "./auth.validation.js";
@@ -19,6 +20,10 @@ export class AuthController {
   register = asyncHandler(async (req: Request, res: Response) => {
     const data = req.body as RegisterInput;
     const result = await authService.register(data);
+
+    // Set httpOnly cookies for browser clients
+    setAuthCookies(res, result.tokens);
+
     ApiResponse.created(res, result, "User registered successfully");
   });
 
@@ -29,6 +34,10 @@ export class AuthController {
   login = asyncHandler(async (req: Request, res: Response) => {
     const data = req.body as LoginInput;
     const result = await authService.login(data);
+
+    // Set httpOnly cookies for browser clients
+    setAuthCookies(res, result.tokens);
+
     ApiResponse.success(res, result, "Login successful");
   });
 
@@ -37,8 +46,13 @@ export class AuthController {
    * Refresh access token
    */
   refresh = asyncHandler(async (req: Request, res: Response) => {
-    const { refreshToken } = req.body as RefreshTokenInput;
+    // Try to get refresh token from cookie first, then body
+    const refreshToken = req.cookies?.refreshToken || (req.body as RefreshTokenInput).refreshToken;
     const tokens = await authService.refreshToken(refreshToken);
+
+    // Set new cookies
+    setAuthCookies(res, tokens);
+
     ApiResponse.success(res, tokens, "Token refreshed successfully");
   });
 
@@ -47,8 +61,16 @@ export class AuthController {
    * Logout user - invalidate refresh token
    */
   logout = asyncHandler(async (req: Request, res: Response) => {
-    const { refreshToken } = req.body as RefreshTokenInput;
-    await authService.logout(refreshToken);
+    // Try to get refresh token from cookie first, then body
+    const refreshToken = req.cookies?.refreshToken || (req.body as RefreshTokenInput).refreshToken;
+
+    if (refreshToken) {
+      await authService.logout(refreshToken);
+    }
+
+    // Clear cookies
+    clearAuthCookies(res);
+
     ApiResponse.success(res, null, "Logged out successfully");
   });
 }
@@ -56,3 +78,4 @@ export class AuthController {
 // Export singleton instance
 export const authController = new AuthController();
 export default authController;
+

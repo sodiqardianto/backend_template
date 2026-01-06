@@ -36,14 +36,26 @@ export const loginSchema = z.object({
 
 /**
  * Refresh token validation schema
+ * Optional since token can come from httpOnly cookie
  */
 export const refreshTokenSchema = z.object({
   refreshToken: z
     .string()
-    .min(1, "Refresh token is required"),
+    .min(1, "Refresh token is required")
+    .optional(),
+});
+
+/**
+ * Logout validation schema
+ * Allow empty body since token comes from httpOnly cookie
+ */
+export const logoutSchema = z.object({
+  refreshToken: z.string().optional(),
 });
 
 // Type inference
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RefreshTokenInput = z.infer<typeof refreshTokenSchema>;
+export type LogoutInput = z.infer<typeof logoutSchema>;
+
