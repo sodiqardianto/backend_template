@@ -11,6 +11,7 @@ trigger: always_on
 - [API Design Rules](#-api-design-rules)
 - [Database Rules](#-database-rules)
 - [Error Handling Rules](#-error-handling-rules)
+- [Authentication Rules](#-authentication-rules)
 - [Git Commit Rules](#-git-commit-rules)
 
 ---
@@ -145,22 +146,28 @@ src/shared/
 │   └── app-error.ts
 ├── middlewares/
 │   ├── async-handler.ts
+│   ├── auth.middleware.ts
 │   ├── error-handler.ts
+│   ├── rate-limiter.ts
 │   └── validate.ts
 └── utils/
-    └── api-response.ts
+    ├── api-response.ts
+    ├── cookie.ts
+    └── user-mapper.ts
 ```
 
 ### Naming Rules
 
 | Type | Pattern | Example |
 |------|---------|---------|
-| Feature folder | Plural noun | `menus/`, `users/`, `orders/` |
-| Controller | `[singular].controller.ts` | `menu.controller.ts` |
-| Service | `[singular].service.ts` | `menu.service.ts` |
-| Repository | `[singular].repository.ts` | `menu.repository.ts` |
-| Routes | `[singular].routes.ts` | `menu.routes.ts` |
-| Validation | `[singular].validation.ts` | `menu.validation.ts` |
+| Feature folder | Plural noun | `menus/`, `users/`, `auth/` |
+| Controller | `[singular].controller.ts` | `menu.controller.ts`, `auth.controller.ts` |
+| Service | `[singular].service.ts` | `menu.service.ts`, `auth.service.ts` |
+| Repository | `[singular].repository.ts` | `menu.repository.ts`, `auth.repository.ts` |
+| Routes | `[singular].routes.ts` | `menu.routes.ts`, `auth.routes.ts` |
+| Validation | `[singular].validation.ts` | `menu.validation.ts`, `auth.validation.ts` |
+
+> **Note:** Untuk feature yang namanya sudah singular (seperti `auth`), gunakan nama yang sama untuk file-filenya.
 
 ---
 
@@ -204,6 +211,36 @@ interface IMenuRepository {
 // ✅ Use type untuk unions, intersections, atau simple types
 type MenuStatus = "active" | "inactive";
 type CreateMenuInput = z.infer<typeof createMenuSchema>;
+```
+
+### Dependency Injection Pattern
+
+Gunakan factory function untuk dependency injection:
+
+```typescript
+// ✅ DO - Interface untuk abstraksi
+export interface IUserService {
+  getAllUsers(): Promise<UserResponse[]>;
+  getUserById(id: string): Promise<UserResponse>;
+}
+
+// ✅ DO - Class dengan constructor injection
+export class UserService implements IUserService {
+  constructor(private readonly repository: IUserRepository) {}
+
+  async getAllUsers(): Promise<UserResponse[]> {
+    const users = await this.repository.findAll();
+    return users.map(mapUserResponse);
+  }
+}
+
+// ✅ DO - Factory function untuk DI
+export function createUserService(repository: IUserRepository): IUserService {
+  return new UserService(repository);
+}
+
+// ✅ DO - Usage di controller
+const userService = createUserService(userRepository);
 ```
 
 ### Return Types
@@ -296,14 +333,46 @@ model Menu {
   id         String   @id @default(uuid())
   title      String
   path       String   @unique
+  icon       String?
   parentId   String?
-  parent     Menu?    @relation("MenuHierarchy", fields: [parentId], references: [id])
+  parent     Menu?    @relation("MenuHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
   children   Menu[]   @relation("MenuHierarchy")
+  order      Int      @default(autoincrement())
+  permission String?
+  isActive   Boolean  @default(true)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
   @@index([parentId])
-  @@map("menus")  // Table name in database
+  @@index([order])
+  @@map("menus")
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  password      String
+  name          String
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  deletedAt     DateTime?      // Soft delete
+  refreshTokens RefreshToken[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([token])
+  @@map("refresh_tokens")
 }
 ```
 
@@ -392,6 +461,90 @@ getById = asyncHandler(async (req, res) => {
 
 ---
 
+## 🔐 Authentication Rules
+
+### JWT Token Strategy
+
+Project ini menggunakan dual-token strategy:
+- **Access Token**: Short-lived (15m default), untuk API authorization
+- **Refresh Token**: Long-lived (7d default), untuk mendapatkan access token baru
+
+### Cookie-based Authentication
+
+```typescript
+// ✅ DO - Set httpOnly cookies untuk browser clients
+setAuthCookies(res, result.tokens);
+
+// ✅ DO - Support both cookie dan body untuk refresh token
+const refreshToken = req.cookies?.refreshToken || req.body.refreshToken;
+```
+
+### Token Storage Rules
+
+| Token Type | Storage | HttpOnly | Secure |
+|------------|---------|----------|--------|
+| Access Token | Cookie + Response body | Yes | Yes (prod) |
+| Refresh Token | Cookie + Response body + Database | Yes | Yes (prod) |
+
+### Multi-Device Support
+
+```typescript
+// ✅ DO - Limit refresh tokens per user (max 4 devices)
+const MAX_DEVICES = 4;
+const tokenCount = await this.repository.countUserRefreshTokens(user.id);
+if (tokenCount >= MAX_DEVICES) {
+  await this.repository.deleteOldestRefreshTokens(user.id, MAX_DEVICES - 1);
+}
+```
+
+### Password Hashing
+
+```typescript
+// ✅ DO - Use bcrypt with configurable salt rounds
+const SALT_ROUNDS = Number(process.env.SALT_ROUNDS || 10);
+const hashedPassword = await bcrypt.hash(data.password, SALT_ROUNDS);
+
+// ✅ DO - Use bcrypt.compare for verification
+const isPasswordValid = await bcrypt.compare(data.password, user.password);
+```
+
+### Soft Delete untuk Users
+
+```typescript
+// ✅ DO - Exclude soft deleted users
+async findUserByEmail(email: string): Promise<User | null> {
+  return prisma.user.findFirst({
+    where: {
+      email,
+      deletedAt: null,  // Exclude soft deleted
+    },
+  });
+}
+```
+
+### Response Mapping
+
+Jangan expose sensitive data ke client:
+
+```typescript
+// ✅ DO - Map user response tanpa password
+export function mapUserResponse(user: User): UserResponse {
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    isActive: user.isActive,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+  };
+}
+
+// ❌ DON'T - Return user langsung dengan password
+return user;
+```
+
+---
+
 ## 📦 Git Commit Rules
 
 ### Commit Message Format
@@ -451,6 +604,8 @@ refactor/centralize-error-handling
 ## 🔗 Related Documentation
 
 - [README.md](./README.md) - Project overview dan setup
-- [Prisma Docs](https://www.prisma.io/docs) - Database ORM
+- [Prisma Docs](https://www.prisma.io/docs) - Database ORM (v7.x)
 - [Zod Docs](https://zod.dev) - Validation library
 - [Express Docs](https://expressjs.com) - Web framework
+- [bcrypt](https://www.npmjs.com/package/bcrypt) - Password hashing
+- [jsonwebtoken](https://www.npmjs.com/package/jsonwebtoken) - JWT implementation

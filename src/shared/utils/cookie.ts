@@ -45,12 +45,13 @@ export function setAuthCookies(
   res.cookie("accessToken", tokens.accessToken, {
     ...COOKIE_OPTIONS,
     maxAge: ACCESS_TOKEN_MAX_AGE,
+    path: "/",
   });
 
   res.cookie("refreshToken", tokens.refreshToken, {
     ...COOKIE_OPTIONS,
     maxAge: REFRESH_TOKEN_MAX_AGE,
-    path: "/api/auth", // Restrict refresh token to auth endpoints only
+    path: "/",
   });
 }
 
@@ -60,10 +61,11 @@ export function setAuthCookies(
 export function clearAuthCookies(res: Response): void {
   res.clearCookie("accessToken", {
     ...COOKIE_OPTIONS,
+    path: "/",
   });
 
   res.clearCookie("refreshToken", {
     ...COOKIE_OPTIONS,
-    path: "/api/auth",
+    path: "/",
   });
 }
