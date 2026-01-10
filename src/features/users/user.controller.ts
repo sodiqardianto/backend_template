@@ -6,7 +6,7 @@ import { userRepository } from "./user.repository.js";
 import { roleRepository } from "../roles/role.repository.js";
 import { authRepository } from "../auth/auth.repository.js";
 import { createUserService } from "./user.service.js";
-import type { CreateUserInput, UpdateUserInput, SyncRolesInput } from "./user.validation.js";
+import type { CreateUserInput, UpdateUserInput, SyncRolesInput, BulkDeleteUserInput } from "./user.validation.js";
 
 // Create service instance with repositories (Dependency Injection)
 const userService = createUserService(userRepository, roleRepository);
@@ -100,6 +100,16 @@ export class UserController {
     const { id } = req.params;
     await userService.deleteUser(id);
     ApiResponse.success(res, null, "User deleted successfully");
+  });
+
+  /**
+   * DELETE /api/users/bulk
+   * Bulk delete users
+   */
+  bulkDelete = asyncHandler(async (req: Request, res: Response) => {
+    const { ids } = req.body as BulkDeleteUserInput;
+    const count = await userService.deleteUsers(ids);
+    ApiResponse.success(res, { deletedCount: count }, `${count} user(s) deleted successfully`);
   });
 
   /**

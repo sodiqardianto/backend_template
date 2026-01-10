@@ -9,6 +9,7 @@ export interface IPermissionService {
   createPermission(data: CreatePermissionInput): Promise<Permission>;
   updatePermission(id: string, data: UpdatePermissionInput): Promise<Permission>;
   deletePermission(id: string): Promise<Permission>;
+  deletePermissions(ids: string[]): Promise<number>;
 }
 
 /**
@@ -83,6 +84,13 @@ export class PermissionService implements IPermissionService {
     }
 
     return this.repository.delete(id);
+  }
+
+  /**
+   * Delete multiple permissions
+   */
+  async deletePermissions(ids: string[]): Promise<number> {
+    return this.repository.deleteMany(ids);
   }
 }
 

@@ -36,3 +36,12 @@ export const syncPermissionsSchema = z.object({
 export type CreateRoleInput = z.infer<typeof createRoleSchema>;
 export type UpdateRoleInput = z.infer<typeof updateRoleSchema>;
 export type SyncPermissionsInput = z.infer<typeof syncPermissionsSchema>;
+
+/**
+ * Bulk delete validation schema
+ */
+export const bulkDeleteRoleSchema = z.object({
+  ids: z.array(z.string().uuid("Invalid role ID")).min(1, "At least one ID is required"),
+});
+
+export type BulkDeleteRoleInput = z.infer<typeof bulkDeleteRoleSchema>;

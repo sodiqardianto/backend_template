@@ -9,6 +9,7 @@ export interface IPermissionRepository {
   create(data: CreatePermissionInput): Promise<Permission>;
   update(id: string, data: UpdatePermissionInput): Promise<Permission>;
   delete(id: string): Promise<Permission>;
+  deleteMany(ids: string[]): Promise<number>;
 }
 
 /**
@@ -68,6 +69,16 @@ export class PermissionRepository implements IPermissionRepository {
     return prisma.permission.delete({
       where: { id },
     });
+  }
+
+  /**
+   * Delete multiple permissions
+   */
+  async deleteMany(ids: string[]): Promise<number> {
+    const result = await prisma.permission.deleteMany({
+      where: { id: { in: ids } },
+    });
+    return result.count;
   }
 }
 

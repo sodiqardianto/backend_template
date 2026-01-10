@@ -6,6 +6,7 @@ import {
   updateRoleSchema,
   idParamSchema,
   syncPermissionsSchema,
+  bulkDeleteRoleSchema,
 } from "./role.validation.js";
 
 const router = Router();
@@ -43,6 +44,13 @@ router.put(
   "/:id",
   validate({ params: idParamSchema, body: updateRoleSchema }),
   roleController.update
+);
+
+// Bulk delete roles (must be before /:id to avoid route conflict)
+router.delete(
+  "/bulk",
+  validate({ body: bulkDeleteRoleSchema }),
+  roleController.bulkDelete
 );
 
 // Delete role

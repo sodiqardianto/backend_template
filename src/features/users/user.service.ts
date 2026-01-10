@@ -21,6 +21,7 @@ export interface IUserService {
   createUser(data: CreateUserInput): Promise<UserWithRolesResponse>;
   updateUser(id: string, data: UpdateUserInput): Promise<UserWithRolesResponse>;
   deleteUser(id: string): Promise<UserResponse>;
+  deleteUsers(ids: string[]): Promise<number>;
   syncRoles(userId: string, roleIds: string[]): Promise<UserWithRolesResponse>;
 }
 
@@ -141,6 +142,13 @@ export class UserService implements IUserService {
 
     const deletedUser = await this.repository.delete(id);
     return mapUserResponse(deletedUser);
+  }
+
+  /**
+   * Delete multiple users
+   */
+  async deleteUsers(ids: string[]): Promise<number> {
+    return this.repository.deleteMany(ids);
   }
 
   /**

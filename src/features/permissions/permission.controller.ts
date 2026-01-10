@@ -3,7 +3,7 @@ import { ApiResponse } from "../../shared/utils/api-response.js";
 import { asyncHandler } from "../../shared/middlewares/async-handler.js";
 import { permissionRepository } from "./permission.repository.js";
 import { createPermissionService } from "./permission.service.js";
-import type { CreatePermissionInput, UpdatePermissionInput } from "./permission.validation.js";
+import type { CreatePermissionInput, UpdatePermissionInput, BulkDeleteInput } from "./permission.validation.js";
 
 // Create service instance with repository (Dependency Injection)
 const permissionService = createPermissionService(permissionRepository);
@@ -60,6 +60,16 @@ export class PermissionController {
     const { id } = req.params;
     await permissionService.deletePermission(id);
     ApiResponse.success(res, null, "Permission deleted successfully");
+  });
+
+  /**
+   * DELETE /api/permissions/bulk
+   * Bulk delete permissions
+   */
+  bulkDelete = asyncHandler(async (req: Request, res: Response) => {
+    const { ids } = req.body as BulkDeleteInput;
+    const count = await permissionService.deletePermissions(ids);
+    ApiResponse.success(res, { deletedCount: count }, `${count} permission(s) deleted successfully`);
   });
 }
 

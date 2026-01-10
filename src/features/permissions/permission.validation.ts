@@ -23,6 +23,14 @@ export const idParamSchema = z.object({
   id: z.string().uuid("Invalid permission ID"),
 });
 
+/**
+ * Bulk delete validation schema
+ */
+export const bulkDeleteSchema = z.object({
+  ids: z.array(z.string().uuid("Invalid permission ID")).min(1, "At least one ID is required"),
+});
+
 // Type inference
 export type CreatePermissionInput = z.infer<typeof createPermissionSchema>;
 export type UpdatePermissionInput = z.infer<typeof updatePermissionSchema>;
+export type BulkDeleteInput = z.infer<typeof bulkDeleteSchema>;

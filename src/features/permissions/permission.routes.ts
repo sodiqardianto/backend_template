@@ -5,6 +5,7 @@ import {
   createPermissionSchema,
   updatePermissionSchema,
   idParamSchema,
+  bulkDeleteSchema,
 } from "./permission.validation.js";
 
 const router = Router();
@@ -41,6 +42,13 @@ router.put(
   "/:id",
   validate({ params: idParamSchema, body: updatePermissionSchema }),
   permissionController.update
+);
+
+// Bulk delete permissions (must be before /:id to avoid route conflict)
+router.delete(
+  "/bulk",
+  validate({ body: bulkDeleteSchema }),
+  permissionController.bulkDelete
 );
 
 // Delete permission

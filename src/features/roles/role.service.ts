@@ -9,6 +9,7 @@ export interface IRoleService {
   createRole(data: CreateRoleInput): Promise<RoleWithPermissions>;
   updateRole(id: string, data: UpdateRoleInput): Promise<RoleWithPermissions>;
   deleteRole(id: string): Promise<void>;
+  deleteRoles(ids: string[]): Promise<number>;
   syncPermissions(roleId: string, permissionIds: string[]): Promise<RoleWithPermissions>;
 }
 
@@ -97,6 +98,13 @@ export class RoleService implements IRoleService {
     }
 
     await this.repository.delete(id);
+  }
+
+  /**
+   * Delete multiple roles
+   */
+  async deleteRoles(ids: string[]): Promise<number> {
+    return this.repository.deleteMany(ids);
   }
 
   /**

@@ -21,6 +21,7 @@ export interface IUserRepository {
   create(data: Omit<CreateUserInput, "roleIds"> & { password: string }, roleIds: string[]): Promise<UserWithRoles>;
   update(id: string, data: UpdateUserInput): Promise<UserWithRoles>;
   delete(id: string): Promise<User>;
+  deleteMany(ids: string[]): Promise<number>;
   syncRoles(userId: string, roleIds: string[]): Promise<UserWithRoles>;
 }
 
@@ -173,6 +174,17 @@ export class UserRepository implements IUserRepository {
       where: { id },
       data: { deletedAt: new Date() },
     });
+  }
+
+  /**
+   * Soft delete multiple users
+   */
+  async deleteMany(ids: string[]): Promise<number> {
+    const result = await prisma.user.updateMany({
+      where: { id: { in: ids }, deletedAt: null },
+      data: { deletedAt: new Date() },
+    });
+    return result.count;
   }
 
   /**

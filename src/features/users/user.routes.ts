@@ -6,6 +6,7 @@ import {
   updateUserSchema,
   userIdParamSchema,
   syncRolesSchema,
+  bulkDeleteUserSchema,
 } from "./user.validation.js";
 
 const router = Router();
@@ -48,6 +49,13 @@ router.put(
   "/:id",
   validate({ params: userIdParamSchema, body: updateUserSchema }),
   userController.update
+);
+
+// Bulk delete users (must be before /:id to avoid route conflict)
+router.delete(
+  "/bulk",
+  validate({ body: bulkDeleteUserSchema }),
+  userController.bulkDelete
 );
 
 // Delete user

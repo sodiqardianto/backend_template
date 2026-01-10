@@ -4,7 +4,7 @@ import { asyncHandler } from "../../shared/middlewares/async-handler.js";
 import { roleRepository } from "./role.repository.js";
 import { permissionRepository } from "../permissions/permission.repository.js";
 import { createRoleService } from "./role.service.js";
-import type { CreateRoleInput, UpdateRoleInput, SyncPermissionsInput } from "./role.validation.js";
+import type { CreateRoleInput, UpdateRoleInput, SyncPermissionsInput, BulkDeleteRoleInput } from "./role.validation.js";
 
 // Create service instance with repositories (Dependency Injection)
 const roleService = createRoleService(roleRepository, permissionRepository);
@@ -61,6 +61,16 @@ export class RoleController {
     const { id } = req.params;
     await roleService.deleteRole(id);
     ApiResponse.success(res, null, "Role deleted successfully");
+  });
+
+  /**
+   * DELETE /api/roles/bulk
+   * Bulk delete roles
+   */
+  bulkDelete = asyncHandler(async (req: Request, res: Response) => {
+    const { ids } = req.body as BulkDeleteRoleInput;
+    const count = await roleService.deleteRoles(ids);
+    ApiResponse.success(res, { deletedCount: count }, `${count} role(s) deleted successfully`);
   });
 
   /**

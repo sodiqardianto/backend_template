@@ -18,6 +18,7 @@ export interface IRoleRepository {
   create(data: CreateRoleInput): Promise<RoleWithPermissions>;
   update(id: string, data: UpdateRoleInput): Promise<RoleWithPermissions>;
   delete(id: string): Promise<Role>;
+  deleteMany(ids: string[]): Promise<number>;
   syncPermissions(roleId: string, permissionIds: string[]): Promise<RoleWithPermissions>;
 }
 
@@ -153,6 +154,16 @@ export class RoleRepository implements IRoleRepository {
     return prisma.role.delete({
       where: { id },
     });
+  }
+
+  /**
+   * Delete multiple roles
+   */
+  async deleteMany(ids: string[]): Promise<number> {
+    const result = await prisma.role.deleteMany({
+      where: { id: { in: ids } },
+    });
+    return result.count;
   }
 
   /**
