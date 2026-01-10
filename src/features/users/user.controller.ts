@@ -1,8 +1,10 @@
 import type { Request, Response } from "express";
 import { ApiResponse } from "../../shared/utils/api-response.js";
 import { asyncHandler } from "../../shared/middlewares/async-handler.js";
+import { AppError } from "../../shared/errors/app-error.js";
 import { userRepository } from "./user.repository.js";
 import { roleRepository } from "../roles/role.repository.js";
+import { authRepository } from "../auth/auth.repository.js";
 import { createUserService } from "./user.service.js";
 import type { CreateUserInput, UpdateUserInput, SyncRolesInput } from "./user.validation.js";
 
@@ -13,6 +15,43 @@ const userService = createUserService(userRepository, roleRepository);
  * User Controller - HTTP request handlers
  */
 export class UserController {
+  /**
+   * GET /api/users/me
+   * Get current authenticated user with permissions
+   */
+  getMe = asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.user?.userId;
+    if (!userId) {
+      throw AppError.unauthorized("User not found in request");
+    }
+    
+    // Get user with permissions (same format as login response)
+    const user = await authRepository.findUserByIdWithPermissions(userId);
+    if (!user) {
+      throw AppError.notFound("User not found");
+    }
+
+    // Extract unique permissions from all roles
+    const permissions = [...new Set(
+      user.roles.flatMap(ur => 
+        ur.role.permissions.map(rp => rp.permission.name)
+      )
+    )];
+
+    // Return user with permissions (matching login response format)
+    const userResponse = {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      isActive: user.isActive,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      permissions,
+    };
+
+    ApiResponse.success(res, userResponse, "Current user retrieved successfully");
+  });
+
   /**
    * GET /api/users
    * Get all users

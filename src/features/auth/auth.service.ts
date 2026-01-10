@@ -3,8 +3,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import type { StringValue } from "ms";
 import { AppError } from "../../shared/errors/app-error.js";
-import { mapUserResponse, type UserResponse } from "../../shared/utils/user-mapper.js";
-import type { IAuthRepository } from "./auth.repository.js";
+import type { IAuthRepository, UserWithPermissions } from "./auth.repository.js";
 import type { RegisterInput, LoginInput } from "./auth.validation.js";
 
 // JWT Configuration
@@ -23,6 +22,16 @@ const JWT_SECRET: string = JWT_SECRET_VALUE;
 export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
+}
+
+export interface UserResponse {
+  id: string;
+  email: string;
+  name: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  permissions: string[];
 }
 
 export interface AuthResponse {
@@ -65,8 +74,17 @@ export class AuthService implements IAuthService {
     // Generate tokens
     const tokens = await this.generateTokens(user);
 
+    // New user has no permissions yet
     return {
-      user: mapUserResponse(user),
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        isActive: user.isActive,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+        permissions: [],
+      },
       tokens,
     };
   }
@@ -75,8 +93,8 @@ export class AuthService implements IAuthService {
    * Login user
    */
   async login(data: LoginInput): Promise<AuthResponse> {
-    // Find user by email
-    const user = await this.repository.findUserByEmail(data.email);
+    // Find user by email with permissions
+    const user = await this.repository.findUserByEmailWithPermissions(data.email);
     if (!user) {
       throw AppError.unauthorized("Invalid email or password");
     }
@@ -96,7 +114,7 @@ export class AuthService implements IAuthService {
     const tokens = await this.generateTokens(user);
 
     return {
-      user: mapUserResponse(user),
+      user: this.mapUserWithPermissions(user),
       tokens,
     };
   }
@@ -135,6 +153,28 @@ export class AuthService implements IAuthService {
    */
   async logout(refreshToken: string): Promise<void> {
     await this.repository.deleteRefreshToken(refreshToken);
+  }
+
+  /**
+   * Map user with permissions to response format
+   */
+  private mapUserWithPermissions(user: UserWithPermissions): UserResponse {
+    // Extract unique permissions from all roles
+    const permissions = [...new Set(
+      user.roles.flatMap(ur => 
+        ur.role.permissions.map(rp => rp.permission.name)
+      )
+    )];
+
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      isActive: user.isActive,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      permissions,
+    };
   }
 
   /**

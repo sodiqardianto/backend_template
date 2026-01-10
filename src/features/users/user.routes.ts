@@ -14,6 +14,7 @@ const router = Router();
  * User Routes
  * All routes are protected by authMiddleware applied in app.ts
  * 
+ * GET    /api/users/me           - Get current authenticated user
  * GET    /api/users              - Get all users
  * POST   /api/users              - Create new user
  * GET    /api/users/:id          - Get single user
@@ -21,6 +22,9 @@ const router = Router();
  * DELETE /api/users/:id          - Delete user
  * PATCH  /api/users/:id/roles    - Sync user roles
  */
+
+// Get current authenticated user (must be before /:id route)
+router.get("/me", userController.getMe);
 
 // Get all users
 router.get("/", userController.getAll);

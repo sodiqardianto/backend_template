@@ -4,11 +4,11 @@ import type { Request, Response } from "express";
 
 /**
  * General API rate limiter
- * 100 requests per 15 minutes
+ * 500 requests per 15 minutes (increased for development)
  */
 export const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
+  max: 500,
   message: "Too many requests, please try again later",
   handler: (_req: Request, res: Response) => {
     ApiResponse.error(res, "Too many requests, please try again later", 429, "TOO_MANY_REQUESTS");

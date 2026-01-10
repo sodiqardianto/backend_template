@@ -5,6 +5,8 @@ import type { RegisterInput } from "./auth.validation.js";
 export interface IAuthRepository {
   findUserByEmail(email: string): Promise<User | null>;
   findUserById(id: string): Promise<User | null>;
+  findUserByEmailWithPermissions(email: string): Promise<UserWithPermissions | null>;
+  findUserByIdWithPermissions(id: string): Promise<UserWithPermissions | null>;
   createUser(data: RegisterInput & { password: string }): Promise<User>;
   createRefreshToken(userId: string, token: string, expiresAt: Date): Promise<RefreshToken>;
   findRefreshToken(token: string): Promise<RefreshToken | null>;
@@ -13,6 +15,19 @@ export interface IAuthRepository {
   countUserRefreshTokens(userId: string): Promise<number>;
   deleteOldestRefreshTokens(userId: string, keepCount: number): Promise<void>;
 }
+
+// Type for user with permissions
+export type UserWithPermissions = User & {
+  roles: {
+    role: {
+      permissions: {
+        permission: {
+          name: string;
+        };
+      }[];
+    };
+  }[];
+};
 
 /**
  * Auth Repository - Database operations for authentication
@@ -38,6 +53,60 @@ export class AuthRepository implements IAuthRepository {
       where: {
         id,
         deletedAt: null,
+      },
+    });
+  }
+
+  /**
+   * Find user by email with permissions (exclude soft deleted)
+   */
+  async findUserByEmailWithPermissions(email: string): Promise<UserWithPermissions | null> {
+    return prisma.user.findFirst({
+      where: {
+        email,
+        deletedAt: null,
+      },
+      include: {
+        roles: {
+          include: {
+            role: {
+              include: {
+                permissions: {
+                  include: {
+                    permission: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  /**
+   * Find user by ID with permissions (exclude soft deleted)
+   */
+  async findUserByIdWithPermissions(id: string): Promise<UserWithPermissions | null> {
+    return prisma.user.findFirst({
+      where: {
+        id,
+        deletedAt: null,
+      },
+      include: {
+        roles: {
+          include: {
+            role: {
+              include: {
+                permissions: {
+                  include: {
+                    permission: true,
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     });
   }
