@@ -7,6 +7,7 @@ import {
   userIdParamSchema,
   syncRolesSchema,
   bulkDeleteUserSchema,
+  listUsersQuerySchema,
 } from "./user.validation.js";
 
 const router = Router();
@@ -27,8 +28,12 @@ const router = Router();
 // Get current authenticated user (must be before /:id route)
 router.get("/me", userController.getMe);
 
-// Get all users
-router.get("/", userController.getAll);
+// Get all users with pagination
+router.get(
+  "/",
+  validate({ query: listUsersQuerySchema }),
+  userController.getAll
+);
 
 // Create new user
 router.post(

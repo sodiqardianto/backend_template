@@ -49,3 +49,16 @@ export const bulkDeleteUserSchema = z.object({
 });
 
 export type BulkDeleteUserInput = z.infer<typeof bulkDeleteUserSchema>;
+
+/**
+ * List users query validation schema (server-side pagination)
+ */
+export const listUsersQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(10),
+  sort: z.string().optional(), // format: "field:asc" or "field:desc"
+  search: z.string().optional(), // search by name or email
+  isActive: z.enum(["true", "false"]).optional(), // filter by active status
+});
+
+export type ListUsersQuery = z.infer<typeof listUsersQuerySchema>;

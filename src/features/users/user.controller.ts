@@ -6,7 +6,7 @@ import { userRepository } from "./user.repository.js";
 import { roleRepository } from "../roles/role.repository.js";
 import { authRepository } from "../auth/auth.repository.js";
 import { createUserService } from "./user.service.js";
-import type { CreateUserInput, UpdateUserInput, SyncRolesInput, BulkDeleteUserInput } from "./user.validation.js";
+import type { CreateUserInput, UpdateUserInput, SyncRolesInput, BulkDeleteUserInput, ListUsersQuery } from "./user.validation.js";
 
 // Create service instance with repositories (Dependency Injection)
 const userService = createUserService(userRepository, roleRepository);
@@ -54,11 +54,46 @@ export class UserController {
 
   /**
    * GET /api/users
-   * Get all users
+   * Get all users with pagination, sorting, and filtering
    */
-  getAll = asyncHandler(async (_req: Request, res: Response) => {
-    const users = await userService.getAllUsers();
-    ApiResponse.success(res, users, "Users retrieved successfully");
+  getAll = asyncHandler(async (req: Request, res: Response) => {
+    const query = req.query as unknown as ListUsersQuery;
+
+    // Parse sort param (format: "name:asc" or "email:desc")
+    let sort: { field: string; order: "asc" | "desc" } | undefined;
+    if (query.sort) {
+      const [field, order] = query.sort.split(":");
+      if (field && (order === "asc" || order === "desc")) {
+        sort = { field, order };
+      }
+    }
+
+    // Parse isActive filter
+    let isActive: boolean | undefined;
+    if (query.isActive === "true") {
+      isActive = true;
+    } else if (query.isActive === "false") {
+      isActive = false;
+    }
+
+    const result = await userService.getAllUsersPaginated({
+      page: query.page ?? 1,
+      limit: query.limit ?? 10,
+      sort,
+      search: query.search,
+      isActive,
+    });
+
+    ApiResponse.paginated(
+      res,
+      result.data,
+      {
+        page: result.meta.page,
+        pageSize: result.meta.limit,
+        total: result.meta.total,
+      },
+      "Users retrieved successfully"
+    );
   });
 
   /**

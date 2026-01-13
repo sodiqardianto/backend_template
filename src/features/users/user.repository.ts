@@ -1,4 +1,4 @@
-import type { User } from "@prisma/client";
+import type { Prisma, User } from "@prisma/client";
 import prisma from "../../config/database.js";
 import type { CreateUserInput, UpdateUserInput } from "./user.validation.js";
 
@@ -14,8 +14,33 @@ export interface UserWithRoles extends User {
   }[];
 }
 
+/**
+ * Paginated result wrapper
+ */
+export interface PaginatedResult<T> {
+  data: T[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+/**
+ * Options for paginated query
+ */
+export interface FindAllPaginatedOptions {
+  page: number;
+  limit: number;
+  sort?: { field: string; order: "asc" | "desc" };
+  search?: string;
+  isActive?: boolean;
+}
+
 export interface IUserRepository {
   findAll(): Promise<UserWithRoles[]>;
+  findAllPaginated(options: FindAllPaginatedOptions): Promise<PaginatedResult<UserWithRoles>>;
   findById(id: string): Promise<UserWithRoles | null>;
   findByEmail(email: string): Promise<User | null>;
   create(data: Omit<CreateUserInput, "roleIds"> & { password: string }, roleIds: string[]): Promise<UserWithRoles>;
@@ -46,6 +71,70 @@ export class UserRepository implements IUserRepository {
         },
       },
     });
+  }
+
+  /**
+   * Get all active users with pagination, sorting, and filtering
+   */
+  async findAllPaginated(options: FindAllPaginatedOptions): Promise<PaginatedResult<UserWithRoles>> {
+    const { page, limit, sort, search, isActive } = options;
+    const skip = (page - 1) * limit;
+
+    // Build where clause
+    const where: Prisma.UserWhereInput = {
+      deletedAt: null,
+    };
+
+    // Search filter (name or email)
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: "insensitive" } },
+        { email: { contains: search, mode: "insensitive" } },
+      ];
+    }
+
+    // Active status filter
+    if (isActive !== undefined) {
+      where.isActive = isActive;
+    }
+
+    // Build orderBy - support nested sorting for roles count or direct fields
+    const validSortFields = ["name", "email", "createdAt", "isActive"];
+    let orderBy: Prisma.UserOrderByWithRelationInput = { createdAt: "desc" };
+    
+    if (sort && validSortFields.includes(sort.field)) {
+      orderBy = { [sort.field]: sort.order };
+    }
+
+    // Execute queries in parallel for better performance
+    const [data, total] = await Promise.all([
+      prisma.user.findMany({
+        where,
+        orderBy,
+        skip,
+        take: limit,
+        include: {
+          roles: {
+            include: {
+              role: {
+                select: { id: true, name: true, description: true },
+              },
+            },
+          },
+        },
+      }),
+      prisma.user.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   /**

@@ -1,7 +1,7 @@
 import bcrypt from "bcrypt";
 import { AppError } from "../../shared/errors/app-error.js";
 import { mapUserResponse, type UserResponse } from "../../shared/utils/user-mapper.js";
-import type { IUserRepository, UserWithRoles } from "./user.repository.js";
+import type { IUserRepository, UserWithRoles, PaginatedResult, FindAllPaginatedOptions } from "./user.repository.js";
 import type { CreateUserInput, UpdateUserInput } from "./user.validation.js";
 import type { IRoleRepository } from "../roles/role.repository.js";
 
@@ -17,6 +17,7 @@ export interface UserWithRolesResponse extends UserResponse {
 
 export interface IUserService {
   getAllUsers(): Promise<UserWithRolesResponse[]>;
+  getAllUsersPaginated(options: FindAllPaginatedOptions): Promise<PaginatedResult<UserWithRolesResponse>>;
   getUserById(id: string): Promise<UserWithRolesResponse>;
   createUser(data: CreateUserInput): Promise<UserWithRolesResponse>;
   updateUser(id: string, data: UpdateUserInput): Promise<UserWithRolesResponse>;
@@ -51,6 +52,17 @@ export class UserService implements IUserService {
   async getAllUsers(): Promise<UserWithRolesResponse[]> {
     const users = await this.repository.findAll();
     return users.map(mapUserWithRoles);
+  }
+
+  /**
+   * Get all users with pagination, sorting, and filtering
+   */
+  async getAllUsersPaginated(options: FindAllPaginatedOptions): Promise<PaginatedResult<UserWithRolesResponse>> {
+    const result = await this.repository.findAllPaginated(options);
+    return {
+      data: result.data.map(mapUserWithRoles),
+      meta: result.meta,
+    };
   }
 
   /**
